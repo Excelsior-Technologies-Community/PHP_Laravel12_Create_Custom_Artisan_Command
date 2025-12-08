@@ -1,4 +1,4 @@
-# 🚀 Laravel 12 Custom Artisan Command – Premium README  
+# 🚀 Laravel 12 Custom Artisan Command 
 
 
 <p align="center">
