@@ -125,7 +125,7 @@ Add CLI-only routes inside:
 
 ---
 
-# 📸 Screenshots (Placeholder)
+# 📸 Screenshots 
 
 <img width="975" height="919" alt="image" src="https://github.com/user-attachments/assets/09761357-cea7-4e19-a3d8-e4416d39864b" />
 
