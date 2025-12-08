@@ -1,30 +1,139 @@
-✨//Laravel Installation Code
-
-⭐composer create-project laravel/laravel example-app
+# 🚀 Laravel 12 Custom Artisan Command – Premium README  
 
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Laravel-12.x-f72c1f?style=for-the-badge&logo=laravel" />
+  <img src="https://img.shields.io/badge/PHP-8.2-blue?style=for-the-badge&logo=php" />
+  <img src="https://img.shields.io/badge/Command-Custom-green?style=for-the-badge" />
+</p>
+
+---
+
+# 📌 Overview
+This project demonstrates how to create and register a **Custom Artisan Command** in **Laravel 12**.
+
+It includes:
+
+- Custom command execution  
+- Writing log output  
+- Automatic command setup  
+- Kernel registration  
+- Running the command manually or with scheduler  
+
+---
+
+# ⭐ Features
+- 🛠 Create Custom Artisan Command  
+- 📝 Auto-generate users (example use case)  
+- 🔧 Works with Laravel Scheduler  
+- 📄 Clean folder structure  
+- 🚀 Ready-to-run setup  
+
+---
+
+# 📁 Folder Structure
+
+```
+app/
+├── Console/Commands/
+│   └── CreateUsers.php
+├── Http/Controllers/
+├── Models/
+routes/
+├── console.php
+└── web.php
+```
+
+---
+
+# ⚙ Installation
+
+```bash
+composer create-project laravel/laravel example-app "12.*"
+```
+
+---
+
+# 🗄 Environment Setup
+
+Configure your `.env`:
+
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=custome_command
+DB_USERNAME=root
+DB_PASSWORD=
 
 
-✨//Code Of Create Command
+---
 
-⭐ php artisan make:command CreateUsers
+# 🔌 Create Custom Command
 
+```bash
+php artisan make:command CreateUsers
+```
 
+---
 
-✨//Run This Code In Terminal
+# 📦 Command Logic  
 
-⭐ php artisan create:users 10
- 
-⭐ php artisan create:users 5
+File: `app/Console/Commands/CreateUsers.php`
 
+```php
+protected $signature = 'create:users {count}';
 
+public function handle()
+{
+    $count = $this->argument('count');
 
-✨//Showing List Code
+    for ($i = 0; $i < $count; $i++) {
+        \App\Models\User::factory()->create();
+    }
 
-⭐ php artisan list
+    $this->info("$count users created successfully.");
+}
+```
 
+---
 
+# 🏗 Register Command  
 
-⭐OUTPUT:-
+File: `app/Console/Kernel.php`
 
-<img width="975" height="919" alt="image" src="https://github.com/user-attachments/assets/cab03553-aa47-4eab-8d91-b795637e46a6" />
+```php
+protected $commands = [
+    Commands\CreateUsers::class,
+];
+```
+
+---
+
+# ▶ Run Command
+
+```bash
+php artisan create:users 10
+```
+
+---
+
+# 📝 Console Route (Optional)
+Add CLI-only routes inside:
+
+`routes/console.php`
+
+---
+
+# 📸 Screenshots (Placeholder)
+
+```
+[ Custom Command Output ]
+[ User Records in Database ]
+```
+
+---
+
+# 🧡 Credits  
+Made with ❤️ by **Hardik Panchal**  
+If you like this project, give it a ⭐ on GitHub!  
