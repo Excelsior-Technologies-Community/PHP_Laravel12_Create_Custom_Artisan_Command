@@ -127,13 +127,5 @@ Add CLI-only routes inside:
 
 # 📸 Screenshots (Placeholder)
 
-```
-[ Custom Command Output ]
-[ User Records in Database ]
-```
+<img width="975" height="919" alt="image" src="https://github.com/user-attachments/assets/09761357-cea7-4e19-a3d8-e4416d39864b" />
 
----
-
-# 🧡 Credits  
-Made with ❤️ by **Hardik Panchal**  
-If you like this project, give it a ⭐ on GitHub!  
