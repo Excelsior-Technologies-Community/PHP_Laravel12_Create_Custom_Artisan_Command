@@ -1,4 +1,4 @@
-# 🚀 Laravel 12 Custom Artisan Command 
+# PHP_Laravel12_Create_Custom_Artisan_Command 
 
 
 <p align="center">
@@ -9,7 +9,7 @@
 
 ---
 
-# 📌 Overview
+#  Overview
 This project demonstrates how to create and register a **Custom Artisan Command** in **Laravel 12**.
 
 It includes:
@@ -22,16 +22,16 @@ It includes:
 
 ---
 
-# ⭐ Features
-- 🛠 Create Custom Artisan Command  
-- 📝 Auto-generate users (example use case)  
-- 🔧 Works with Laravel Scheduler  
-- 📄 Clean folder structure  
-- 🚀 Ready-to-run setup  
+#  Features
+-  Create Custom Artisan Command  
+-  Auto-generate users (example use case)  
+-  Works with Laravel Scheduler  
+-  Clean folder structure  
+-  Ready-to-run setup  
 
 ---
 
-# 📁 Folder Structure
+#  Folder Structure
 
 ```
 app/
@@ -46,7 +46,7 @@ routes/
 
 ---
 
-# ⚙ Installation
+#  Installation
 
 ```bash
 composer create-project laravel/laravel example-app "12.*"
@@ -54,7 +54,7 @@ composer create-project laravel/laravel example-app "12.*"
 
 ---
 
-# 🗄 Environment Setup
+#  Environment Setup
 
 Configure your `.env`:
 
@@ -69,7 +69,7 @@ DB_PASSWORD=
 
 ---
 
-# 🔌 Create Custom Command
+#  Create Custom Command
 
 ```bash
 php artisan make:command CreateUsers
@@ -77,7 +77,7 @@ php artisan make:command CreateUsers
 
 ---
 
-# 📦 Command Logic  
+#  Command Logic  
 
 File: `app/Console/Commands/CreateUsers.php`
 
@@ -98,7 +98,7 @@ public function handle()
 
 ---
 
-# 🏗 Register Command  
+#  Register Command  
 
 File: `app/Console/Kernel.php`
 
@@ -110,7 +110,7 @@ protected $commands = [
 
 ---
 
-# ▶ Run Command
+#  Run Command
 
 ```bash
 php artisan create:users 10
@@ -118,14 +118,14 @@ php artisan create:users 10
 
 ---
 
-# 📝 Console Route (Optional)
+#  Console Route (Optional)
 Add CLI-only routes inside:
 
 `routes/console.php`
 
 ---
 
-# 📸 Screenshots 
+#  Screenshots 
 
 <img width="975" height="919" alt="image" src="https://github.com/user-attachments/assets/09761357-cea7-4e19-a3d8-e4416d39864b" />
 
