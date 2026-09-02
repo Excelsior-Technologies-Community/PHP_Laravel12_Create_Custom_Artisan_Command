@@ -7,32 +7,90 @@ use App\Models\User;
 
 class CreateUsers extends Command
 {
-    /**
-     * The name and signature of the Artisan command.
-     * Example: php artisan create:users 10
-     */
-    protected $signature = 'create:users {count}';
+    protected $signature = 'create:users {count}
+                            {--role= : Assign a role (admin, user, moderator)}
+                            {--verified : Make email verified}
+                            {--unverified : Make email unverified}
+                            {--factory-state= : Pass a factory state method name}';
 
-    /**
-     * The description of the command.
-     */
     protected $description = 'Create Dummy Users for your Application';
 
-    /**
-     * Execute the console command.
-     */
-    public function handle()
+    public function handle(): int
     {
-        // Get the number of users to create from the command argument
-        $numberOfUsers = $this->argument('count');
+        $this->info('╔══════════════════════════════════════════╗');
+        $this->info('║   👥 Create Dummy Users Command         ║');
+        $this->info('╚══════════════════════════════════════════╝');
+        $this->newLine();
 
-        // Loop and create dummy users using the User Factory
-        for ($i = 0; $i < $numberOfUsers; $i++) {
-            User::factory()->create();
+        $numberOfUsers = (int) $this->argument('count');
+        $role = $this->option('role');
+        $verified = $this->option('verified');
+        $unverified = $this->option('unverified');
+        $factoryState = $this->option('factory-state');
+
+        if ($numberOfUsers < 1) {
+            $this->error('❌ Count must be at least 1.');
+            return Command::FAILURE;
         }
 
-        // Display success message in the console
-        $this->info("$numberOfUsers Dummy Users Created Successfully!");
+        if ($numberOfUsers > 1000) {
+            $this->warn("⚠️  Creating {$numberOfUsers} users. This may take a while...");
+        }
+
+        $options = [];
+        if ($role) {
+            $options[] = "Role: <info>{$role}</info>";
+        }
+        if ($verified) {
+            $options[] = "Verified: <info>Yes</info>";
+        }
+        if ($unverified) {
+            $options[] = "Verified: <info>No</info>";
+        }
+        if ($factoryState) {
+            $options[] = "Factory State: <info>{$factoryState}</info>";
+        }
+
+        if (!empty($options)) {
+            $this->line('📋 Options: ' . implode(' | ', $options));
+            $this->newLine();
+        }
+
+        $this->info("✨ Creating {$numberOfUsers} users...");
+
+        $bar = $this->output->createProgressBar($numberOfUsers);
+        $bar->start();
+
+        for ($i = 0; $i < $numberOfUsers; $i++) {
+            $factory = User::factory();
+
+            if ($role) {
+                $factory = $factory->state(fn (array $attributes) => ['role' => $role]);
+            }
+
+            if ($verified) {
+                $factory = $factory->state(fn (array $attributes) => ['email_verified_at' => now()]);
+            } elseif ($unverified) {
+                $factory = $factory->state(fn (array $attributes) => ['email_verified_at' => null]);
+            }
+
+            if ($factoryState) {
+                try {
+                    $factory = $factory->{$factoryState}();
+                } catch (\Throwable) {
+                    // ignore invalid state and continue
+                }
+            }
+
+            $factory->create();
+            $bar->advance();
+        }
+
+        $bar->finish();
+
+        $this->newLine();
+        $this->info("✅ {$numberOfUsers} Dummy Users Created Successfully!");
+        $this->line('💾 Users have been saved to the database.');
 
         return Command::SUCCESS;
     }
