@@ -22,5 +22,6 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('create:users 1')->daily()->description('Create 1 dummy user daily');
         $schedule->command('inspire')->hourly()->description('Display an inspiring quote hourly');
+        $schedule->command('app:health')->daily()->description('Check application health daily');
     })
     ->create();
