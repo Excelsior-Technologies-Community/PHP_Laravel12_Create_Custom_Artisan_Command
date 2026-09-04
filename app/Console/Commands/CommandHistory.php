@@ -9,6 +9,7 @@ class CommandHistory extends Command
 {
     protected $signature = 'command:history
                             {--failed : Show only failed commands}
+                            {--success : Show only successful commands}
                             {--command= : Filter by command name}
                             {--limit=20 : Number of records to display}
                             {--clear : Delete command execution history}';
@@ -29,11 +30,21 @@ class CommandHistory extends Command
             return Command::FAILURE;
         }
 
+        if ($this->option('failed') && $this->option('success')) {
+            $this->error('❌ Use either --failed or --success, not both.');
+
+            return Command::FAILURE;
+        }
+
         $query = CommandLog::query()
             ->orderByDesc('executed_at');
 
         if ($this->option('failed')) {
             $query->where('status', 'failed');
+        }
+
+        if ($this->option('success')) {
+            $query->where('status', 'success');
         }
 
         if ($this->option('command')) {
@@ -54,6 +65,7 @@ class CommandHistory extends Command
 
         foreach ($logs as $log) {
             $rows[] = [
+                $log->id,
                 $log->command,
                 $log->status === 'success'
                     ? '✅ SUCCESS'
@@ -70,6 +82,7 @@ class CommandHistory extends Command
 
         $this->table(
             [
+                'ID',
                 'Command',
                 'Status',
                 'Exit Code',
@@ -83,8 +96,8 @@ class CommandHistory extends Command
 
         $this->info(
             '📊 Showing <info>' .
-            $logs->count() .
-            '</info> command execution(s).'
+                $logs->count() .
+                '</info> command execution(s).'
         );
 
         return Command::SUCCESS;
@@ -121,7 +134,7 @@ class CommandHistory extends Command
     private function displayHeader(): void
     {
         $this->info('╔══════════════════════════════════════════╗');
-        $this->info('║       📜 Artisan Command History       ║');
+        $this->info('║       📜 Artisan Command History         ║');
         $this->info('╚══════════════════════════════════════════╝');
         $this->newLine();
     }

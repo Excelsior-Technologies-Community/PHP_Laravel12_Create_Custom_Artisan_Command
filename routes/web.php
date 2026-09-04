@@ -4,44 +4,32 @@ use App\Models\CommandLog;
 use Illuminate\Console\Command;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
 
     $commands = collect(Artisan::all())
-        ->map(function ($command, $key) {
+        ->map(function ($command, $name) {
+
+            $definition = $command->getDefinition();
 
             return [
-                'name' => $key,
-
-                'description' => method_exists($command, 'getDescription')
-                    ? $command->getDescription()
-                    : '',
-
-                'signature' => method_exists($command, 'getSignature')
-                    ? $command->getSignature()
-                    : '',
-
-                'arguments' => method_exists($command, 'getDefinition')
-                    ? array_keys(
-                        $command
-                            ->getDefinition()
-                            ->getArguments()
-                    )
-                    : [],
-
-                'options' => method_exists($command, 'getDefinition')
-                    ? array_keys(
-                        $command
-                            ->getDefinition()
-                            ->getOptions()
-                    )
-                    : [],
+                'name' => $name,
+                'description' => $command->getDescription(),
+                'signature' => $command->getSynopsis(),
+                'arguments' => collect($definition->getArguments())
+                    ->map(fn($argument) => $argument->getName())
+                    ->values()
+                    ->toArray(),
+                'options' => collect($definition->getOptions())
+                    ->map(fn($option) => $option->getName())
+                    ->values()
+                    ->toArray(),
             ];
         })
         ->sortBy('name')
-        ->values()
-        ->all();
+        ->values();
 
     return view('commands', compact('commands'));
 });
@@ -55,67 +43,64 @@ Route::get('/', function () {
 
 Route::post('/run-command', function (Request $request) {
 
-    $command = $request->input('command');
+    $request->validate([
+        'command' => ['required', 'string'],
+        'args' => ['nullable', 'array'],
+        'options' => ['nullable', 'array'],
+    ]);
 
-    $args = $request->input('args', []);
-
-    $options = $request->input('options', []);
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Validate Command
-    |--------------------------------------------------------------------------
-    */
-
-    if (!$command) {
-
-        return response()->json([
-            'success' => false,
-            'exit_code' => 1,
-            'output' => '',
-            'error' => 'Command is required',
-            'duration' => '-',
-        ], 400);
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Find Artisan Command
-    |--------------------------------------------------------------------------
-    */
-
-    $artisanCommand = Artisan::all()[$command] ?? null;
-
-    if (!$artisanCommand) {
-
-        return response()->json([
-            'success' => false,
-            'exit_code' => 1,
-            'output' => '',
-            'error' => "Command '{$command}' does not exist.",
-            'duration' => '-',
-        ], 404);
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Normalize Input
-    |--------------------------------------------------------------------------
-    */
-
-    $args = is_array($args)
-        ? array_values($args)
-        : [];
-
-    $options = is_array($options)
-        ? $options
-        : [];
-
+    $commandName = $request->command;
 
     try {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Check Command Exists
+        |--------------------------------------------------------------------------
+        */
+
+        $artisanCommands = Artisan::all();
+
+        if (!isset($artisanCommands[$commandName])) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Command not found.',
+            ], 404);
+        }
+
+        $artisanCommand = $artisanCommands[$commandName];
+
+        /*
+        |--------------------------------------------------------------------------
+        | Normalize Arguments
+        |--------------------------------------------------------------------------
+        */
+
+        $args = $request->input('args', []);
+
+        if (!is_array($args)) {
+            $args = [];
+        }
+
+        $args = array_values(
+            array_filter(
+                $args,
+                fn($value) => $value !== null && $value !== ''
+            )
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Normalize Options
+        |--------------------------------------------------------------------------
+        */
+
+        $options = $request->input('options', []);
+
+        if (!is_array($options)) {
+            $options = [];
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -125,59 +110,39 @@ Route::post('/run-command', function (Request $request) {
 
         $parameters = [];
 
-
         /*
         |--------------------------------------------------------------------------
         | Map Positional Arguments
         |--------------------------------------------------------------------------
         */
 
-        if (method_exists($artisanCommand, 'getDefinition')) {
+        $definitionArguments = collect(
+            $artisanCommand->getDefinition()->getArguments()
+        )->values();
 
-            $definition = $artisanCommand->getDefinition();
+        foreach ($args as $index => $value) {
 
-            $argumentNames = array_keys(
-                $definition->getArguments()
-            );
+            if (isset($definitionArguments[$index])) {
 
+                $argumentName = $definitionArguments[$index]->getName();
 
-            foreach ($args as $index => $value) {
-
-                if (
-                    isset($argumentNames[$index]) &&
-                    $value !== '' &&
-                    $value !== null
-                ) {
-
-                    $parameters[
-                        $argumentNames[$index]
-                    ] = $value;
-                }
+                $parameters[$argumentName] = $value;
             }
         }
 
-
         /*
         |--------------------------------------------------------------------------
-        | Map Command Options
+        | Map Options
         |--------------------------------------------------------------------------
         */
 
         foreach ($options as $key => $value) {
 
-            if ($value === '' || $value === null) {
-                continue;
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | Remove -- Prefix
-            |--------------------------------------------------------------------------
-            */
-
             $key = ltrim($key, '-');
 
+            if ($key === '') {
+                continue;
+            }
 
             /*
             |--------------------------------------------------------------------------
@@ -188,28 +153,44 @@ Route::post('/run-command', function (Request $request) {
             if (
                 $value === true ||
                 $value === 'true' ||
-                $value === '1'
+                $value === '1' ||
+                $value === 1
             ) {
 
-                $parameters[
-                    '--' . $key
-                ] = true;
+                $parameters['--' . $key] = true;
 
                 continue;
             }
 
-
             /*
             |--------------------------------------------------------------------------
-            | Value Options
+            | Empty Option
             |--------------------------------------------------------------------------
             */
 
-            $parameters[
-                '--' . $key
-            ] = $value;
+            if ($value === null || $value === '') {
+
+                $parameters['--' . $key] = true;
+
+                continue;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Option With Value
+            |--------------------------------------------------------------------------
+            */
+
+            $parameters['--' . $key] = $value;
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | Start Timer
+        |--------------------------------------------------------------------------
+        */
+
+        $startTime = microtime(true);
 
         /*
         |--------------------------------------------------------------------------
@@ -217,20 +198,29 @@ Route::post('/run-command', function (Request $request) {
         |--------------------------------------------------------------------------
         */
 
-        $start = microtime(true);
-
         $exitCode = Artisan::call(
-            $command,
+            $commandName,
             $parameters
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Capture Output
+        |--------------------------------------------------------------------------
+        */
+
         $output = Artisan::output();
 
+        /*
+        |--------------------------------------------------------------------------
+        | Calculate Duration
+        |--------------------------------------------------------------------------
+        */
+
         $duration = round(
-            microtime(true) - $start,
+            microtime(true) - $startTime,
             3
         );
-
 
         /*
         |--------------------------------------------------------------------------
@@ -242,37 +232,23 @@ Route::post('/run-command', function (Request $request) {
             ? 'success'
             : 'failed';
 
-
         /*
         |--------------------------------------------------------------------------
-        | Save Command Execution History
+        | Save Command History
         |--------------------------------------------------------------------------
         */
 
         CommandLog::create([
-
-            'command' => $command,
-
+            'command' => $commandName,
             'arguments' => $args,
-
             'options' => $options,
-
             'exit_code' => $exitCode,
-
             'status' => $status,
-
             'output' => $output,
-
-            'error' => $exitCode !== Command::SUCCESS
-                ? $output
-                : null,
-
+            'error' => $status === 'failed' ? $output : null,
             'duration' => $duration,
-
             'executed_at' => now(),
-
         ]);
-
 
         /*
         |--------------------------------------------------------------------------
@@ -281,100 +257,80 @@ Route::post('/run-command', function (Request $request) {
         */
 
         return response()->json([
-
-            'success' => $exitCode === Command::SUCCESS,
-
+            'success' => $status === 'success',
+            'status' => $status,
+            'command' => $commandName,
             'exit_code' => $exitCode,
-
+            'duration' => $duration,
             'output' => $output,
-
-            'error' => $exitCode !== Command::SUCCESS
-                ? $output
-                : null,
-
-            'duration' => $duration . 's',
-
         ]);
-
-
-    } catch (\Throwable $e) {
-
+    } catch (Throwable $e) {
 
         /*
         |--------------------------------------------------------------------------
-        | Calculate Duration
+        | Calculate Failed Duration
         |--------------------------------------------------------------------------
         */
 
-        $duration = isset($start)
-            ? round(
-                microtime(true) - $start,
-                3
-            )
-            : null;
-
+        $duration = isset($startTime)
+            ? round(microtime(true) - $startTime, 3)
+            : 0;
 
         /*
         |--------------------------------------------------------------------------
-        | Save Exception To History
+        | Save Failed Execution
         |--------------------------------------------------------------------------
         */
 
         try {
 
             CommandLog::create([
-
-                'command' => $command,
-
-                'arguments' => $args,
-
-                'options' => $options,
-
+                'command' => $commandName,
+                'arguments' => $args ?? [],
+                'options' => $options ?? [],
                 'exit_code' => 1,
-
                 'status' => 'failed',
-
                 'output' => '',
-
                 'error' => $e->getMessage(),
-
                 'duration' => $duration,
-
                 'executed_at' => now(),
-
             ]);
+        } catch (Throwable $logException) {
 
-        } catch (\Throwable) {
-
-            /*
-            |--------------------------------------------------------------------------
-            | Do Not Hide Original Error
-            |--------------------------------------------------------------------------
-            */
-
+            Log::error(
+                'Unable to save command history.',
+                [
+                    'error' => $logException->getMessage(),
+                ]
+            );
         }
-
 
         /*
         |--------------------------------------------------------------------------
-        | Return Error Response
+        | Log Exception
+        |--------------------------------------------------------------------------
+        */
+
+        Log::error(
+            'Artisan command execution failed.',
+            [
+                'command' => $commandName,
+                'error' => $e->getMessage(),
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Return Error
         |--------------------------------------------------------------------------
         */
 
         return response()->json([
-
             'success' => false,
-
-            'exit_code' => 1,
-
-            'output' => '',
-
+            'status' => 'failed',
+            'message' => $e->getMessage(),
             'error' => $e->getMessage(),
-
-            'duration' => $duration !== null
-                ? $duration . 's'
-                : '-',
-
+            'duration' => $duration,
         ], 500);
     }
 });
@@ -382,15 +338,16 @@ Route::post('/run-command', function (Request $request) {
 
 /*
 |--------------------------------------------------------------------------
-| Command History Page
+| Command History
 |--------------------------------------------------------------------------
 */
 
-Route::get('/command-history', function () {
+Route::get('/command-history', function (Request $request) {
 
     $logs = CommandLog::query()
-        ->orderByDesc('executed_at')
-        ->paginate(10);
+        ->latest('executed_at')
+        ->paginate(5)
+        ->withQueryString();
 
     return view(
         'command-history',
